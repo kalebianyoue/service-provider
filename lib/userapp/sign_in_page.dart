@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:serviceprovider/userapp/nav_bar_manage.dart';
-import 'sign_up_page.dart'; // <-- Import SignUpPage
+import 'package:serviceprovider/userapp/sign_up_page.dart'; // <-- Import SignUpPage
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -28,11 +28,10 @@ class _SignInPageState extends State<SignInPage> {
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
+        Navigator.pushReplacement(
+          context,
+        MaterialPageRoute(builder: (context)=> NavBarManage()));
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const NavBarManage()),
-      );
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message ?? "Login failed")),

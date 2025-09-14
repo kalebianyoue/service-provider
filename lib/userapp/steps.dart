@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:serviceprovider/userapp/auth_page.dart';
 import 'package:serviceprovider/userapp/sign_up_page.dart';
 
 
@@ -155,7 +154,7 @@ class WelcomePage extends StatelessWidget {
                   height: 56,
                   child: ElevatedButton(
                     onPressed: () {
-                      Navigator.push(context, 
+                      Navigator.push(context,
                       MaterialPageRoute(builder: (context) => SignUpPage())
                       );
                     },

@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:serviceprovider/userapp/steps.dart';
-import 'package:serviceprovider/userapp/sign_in_page.dart';
-import 'package:serviceprovider/userapp/nav_bar_manage.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -19,9 +16,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: NavBarManage(), // ✅ Steps is always the first landing page
+      home: const Steps(), // Steps is always the first landing page
     );
   }
 }

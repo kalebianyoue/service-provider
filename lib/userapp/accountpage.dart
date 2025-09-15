@@ -1,9 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-
-
-class AccountPage extends StatelessWidget {
+class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
+
+  @override
+  State<AccountPage> createState() => _AccountPageState();
+}
+
+class _AccountPageState extends State<AccountPage> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  User? _user;
+  String _userName = "User"; // Default name
+
+  @override
+  void initState() {
+    super.initState();
+    _getCurrentUser();
+  }
+
+  void _getCurrentUser() async {
+    _user = _auth.currentUser;
+    if (_user != null) {
+      setState(() {
+        // Use displayName if available, otherwise use email username part
+        _userName = _user!.displayName ??
+            (_user!.email != null ? _user!.email!.split('@')[0] : "User");
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,13 +71,13 @@ class AccountPage extends StatelessWidget {
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text("Bank",
-                              style: TextStyle(
+                        children: [
+                          Text(_userName,
+                              style: const TextStyle(
                                   fontSize: 18, fontWeight: FontWeight.bold)),
-                          SizedBox(height: 4),
+                          const SizedBox(height: 4),
                           Row(
-                            children: [
+                            children: const [
                               Icon(Icons.star, color: Colors.orange, size: 18),
                               SizedBox(width: 4),
                               Text("5.00 (0 reviews)",
@@ -87,8 +112,6 @@ class AccountPage extends StatelessWidget {
                 },
               ),
             ),
-
-
 
             const SizedBox(height: 20),
 

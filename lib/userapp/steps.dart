@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:serviceprovider/userapp/connexion.dart';
 import 'package:serviceprovider/userapp/sign_up_page.dart';
 
-
-void main() {
-  runApp(const Steps());
-}
 
 class Steps extends StatelessWidget {
   const Steps({Key? key}) : super(key: key);
@@ -48,7 +45,7 @@ class WelcomePage extends StatelessWidget {
                 // Status bar spacer
                 const SizedBox(height: 20),
 
-                // Yoojo logo
+                // App logo
                 const Text(
                   'On Work Quoi PRO',
                   style: TextStyle(
@@ -148,14 +145,15 @@ class WelcomePage extends StatelessWidget {
 
                 const SizedBox(height: 50),
 
-                // Get Started button
+                // Get Started button (Sign Up)
                 Container(
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
                     onPressed: () {
-                      Navigator.push(context,
-                      MaterialPageRoute(builder: (context) => SignUpPage())
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => Connexion()),
                       );
                     },
                     style: ElevatedButton.styleFrom(

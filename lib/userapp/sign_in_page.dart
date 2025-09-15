@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:serviceprovider/userapp/nav_bar_manage.dart';
-import 'package:serviceprovider/userapp/sign_up_page.dart'; // <-- Import SignUpPage
+import 'package:serviceprovider/userapp/sign_up_page.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -15,49 +15,154 @@ class _SignInPageState extends State<SignInPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool isLoading = false;
+  bool _obscurePassword = true;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  Future<void> signIn() async {
+  // Méthode alternative pour contourner le bug Pigeon
+  Future<void> signInWithRetry() async {
     if (!_formKey.currentState!.validate()) return;
 
     try {
       setState(() => isLoading = true);
 
-      await _auth.signInWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
-      );
-        Navigator.pushReplacement(
-          context,
-        MaterialPageRoute(builder: (context)=> NavBarManage()));
+      // Première tentative de connexion
+      try {
+        UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+          email: emailController.text.trim(),
+          password: passwordController.text.trim(),
+        );
 
+        if (userCredential.user != null) {
+          _redirectToHome();
+          return;
+        }
+      } catch (firstError) {
+        // Si la première tentative échoue avec l'erreur Pigeon, on réessaie
+        print("First attempt failed: $firstError");
+
+        // Petite pause avant la deuxième tentative
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        // Deuxième tentative
+        try {
+          UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+            email: emailController.text.trim(),
+            password: passwordController.text.trim(),
+          );
+
+          if (userCredential.user != null) {
+            _redirectToHome();
+            return;
+          }
+        } catch (secondError) {
+          // Si la deuxième tentative échoue aussi, on affiche l'erreur
+          print("Second attempt failed: $secondError");
+          throw secondError;
+        }
+      }
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? "Login failed")),
-      );
+      _handleAuthError(e);
+    } catch (e) {
+      _handleGenericError(e);
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+    }
+  }
+
+  void _redirectToHome() {
+    if (!mounted) return;
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => NavBarManage()),
+          (Route<dynamic> route) => false,
+    );
+  }
+
+  void _handleAuthError(FirebaseAuthException e) {
+    String errorMessage = "Une erreur s'est produite";
+
+    if (e.code == 'user-not-found') {
+      errorMessage = "Aucun utilisateur trouvé avec cet email";
+    } else if (e.code == 'wrong-password') {
+      errorMessage = "Mot de passe incorrect";
+    } else if (e.code == 'invalid-email') {
+      errorMessage = "Format d'email invalide";
+    } else if (e.code == 'user-disabled') {
+      errorMessage = "Ce compte a été désactivé";
+    } else if (e.code == 'network-request-failed') {
+      errorMessage = "Erreur de connexion réseau";
+    } else if (e.code == 'too-many-requests') {
+      errorMessage = "Trop de tentatives. Réessayez plus tard";
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  void _handleGenericError(e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Erreur lors de la connexion: ${e.toString()}"),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     }
   }
 
   Future<void> resetPassword() async {
     if (emailController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Enter your email first")),
+        const SnackBar(
+          content: Text("Veuillez entrer votre email d'abord"),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
-    try {
-      await _auth.sendPasswordResetEmail(
-        email: emailController.text.trim(),
-      );
+
+    final email = emailController.text.trim();
+    if (!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(email)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Password reset email sent")),
+        const SnackBar(
+          content: Text("Veuillez entrer un email valide"),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Email de réinitialisation envoyé"),
+          backgroundColor: Colors.green,
+        ),
       );
     } on FirebaseAuthException catch (e) {
+      String errorMessage = "Impossible d'envoyer l'email de réinitialisation";
+
+      if (e.code == 'user-not-found') {
+        errorMessage = "Aucun utilisateur trouvé avec cet email";
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? "Password reset failed")),
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -67,19 +172,30 @@ class _SignInPageState extends State<SignInPage> {
     return Scaffold(
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
+          : SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Form(
           key: _formKey,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              const SizedBox(height: 60),
+              FlutterLogo(size: 120),
+              const SizedBox(height: 30),
               const Text(
-                "Welcome Back",
+                "Content de vous revoir",
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 32,
+                  fontSize: 28,
                   color: Colors.blueAccent,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                "Connectez-vous pour continuer",
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
                 ),
               ),
               const SizedBox(height: 30),
@@ -88,17 +204,42 @@ class _SignInPageState extends State<SignInPage> {
                 label: "Email",
                 icon: Icons.mail,
                 keyboard: TextInputType.emailAddress,
-                validator: (val) =>
-                val!.isEmpty ? "Enter email" : null,
+                validator: (val) {
+                  if (val!.isEmpty) {
+                    return "Veuillez entrer votre email";
+                  }
+                  if (!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(val)) {
+                    return "Format d'email invalide";
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
               _buildField(
                 controller: passwordController,
-                label: "Password",
+                label: "Mot de passe",
                 icon: Icons.lock,
-                obscure: true,
-                validator: (val) =>
-                val!.length < 6 ? "Password too short" : null,
+                obscure: _obscurePassword,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                    color: Colors.grey,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
+                ),
+                validator: (val) {
+                  if (val!.isEmpty) {
+                    return "Veuillez entrer votre mot de passe";
+                  }
+                  if (val.length < 6) {
+                    return "Le mot de passe doit contenir au moins 6 caractères";
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 10),
               Align(
@@ -106,7 +247,7 @@ class _SignInPageState extends State<SignInPage> {
                 child: TextButton(
                   onPressed: resetPassword,
                   child: const Text(
-                    "Forgot Password?",
+                    "Mot de passe oublié?",
                     style: TextStyle(color: Colors.blueAccent),
                   ),
                 ),
@@ -115,7 +256,7 @@ class _SignInPageState extends State<SignInPage> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: signIn,
+                  onPressed: signInWithRetry,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blueAccent,
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -124,7 +265,7 @@ class _SignInPageState extends State<SignInPage> {
                     ),
                   ),
                   child: const Text(
-                    "Login",
+                    "Se connecter",
                     style: TextStyle(
                         color: Colors.white,
                         fontSize: 18,
@@ -133,28 +274,29 @@ class _SignInPageState extends State<SignInPage> {
                 ),
               ),
               const SizedBox(height: 20),
-              GestureDetector(
-                onTap: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const SignUpPage()),
-                  );
-                },
-                child: RichText(
-                  text: const TextSpan(
-                    text: "Don't have an account? ",
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    "Vous n'avez pas de compte? ",
                     style: TextStyle(color: Colors.black87),
-                    children: [
-                      TextSpan(
-                        text: "Sign Up",
-                        style: TextStyle(
-                            color: Colors.blueAccent,
-                            fontWeight: FontWeight.bold),
-                      ),
-                    ],
                   ),
-                ),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const SignUpPage()),
+                      );
+                    },
+                    child: const Text(
+                      "S'inscrire",
+                      style: TextStyle(
+                          color: Colors.blueAccent,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -170,6 +312,7 @@ class _SignInPageState extends State<SignInPage> {
     String? Function(String?)? validator,
     TextInputType keyboard = TextInputType.text,
     bool obscure = false,
+    Widget? suffixIcon,
   }) {
     return TextFormField(
       controller: controller,
@@ -178,9 +321,14 @@ class _SignInPageState extends State<SignInPage> {
       keyboardType: keyboard,
       decoration: InputDecoration(
         prefixIcon: Icon(icon),
+        suffixIcon: suffixIcon,
         labelText: label,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
         ),
       ),
     );

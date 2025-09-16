@@ -18,7 +18,7 @@ class _NavBarManageState extends State<NavBarManage> {
 
 
   List pages  = [
-    ActivityPage(),
+    BookingListPage(),
     Joblist(),
     AgendaPage(),
     ChatScreen(),

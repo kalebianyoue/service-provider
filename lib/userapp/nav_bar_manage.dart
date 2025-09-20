@@ -22,7 +22,7 @@ class _NavBarManageState extends State<NavBarManage> {
     Joblist(),
     AgendaPage(),
     ChatScreen(),
-    AccountPage(),
+    ManageAccountPage(),
   ];
 
   int currentIndex = 0;

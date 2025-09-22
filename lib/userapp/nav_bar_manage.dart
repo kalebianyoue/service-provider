@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:serviceprovider/userapp/activity_page.dart';
 import 'package:serviceprovider/userapp/accountpage.dart';
 import 'package:serviceprovider/userapp/agendapage.dart';
-import 'package:serviceprovider/userapp/chat_screen.dart';
+import 'package:serviceprovider/userapp/chat_page.dart';
 import 'package:serviceprovider/userapp/joblist.dart';
 
 
@@ -21,7 +21,7 @@ class _NavBarManageState extends State<NavBarManage> {
     BookingListPage(),
     Joblist(),
     AgendaPage(),
-    ChatScreen(),
+    ChatPage(),
     ManageAccountPage(),
   ];
 

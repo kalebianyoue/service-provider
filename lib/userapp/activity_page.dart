@@ -16,6 +16,7 @@ class _BookingListPageState extends State<BookingListPage> {
   String _filterStatus = 'all';
   String _sortBy = 'date';
   final Map<String, String> _userNamesCache = {}; // Cache for user names
+  final Map<String, String> _providerNamesCache = {}; // Cache for provider names
 
   @override
   Widget build(BuildContext context) {
@@ -359,6 +360,27 @@ class _BookingListPageState extends State<BookingListPage> {
               content: formattedCreatedDate,
             ),
 
+            // Show provider info if job is accepted
+            if (data['status'] == 'accepted' && data['acceptedBy'] != null)
+              FutureBuilder<String>(
+                future: _getProviderName(data['acceptedBy']),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return _buildInfoSection(
+                      icon: Icons.person,
+                      title: 'Accepted by',
+                      content: 'Loading...',
+                    );
+                  }
+                  return _buildInfoSection(
+                    icon: Icons.person,
+                    title: 'Accepted by',
+                    content: snapshot.data ?? 'Unknown Provider',
+                    onTap: () => _viewProviderProfile(data['acceptedBy']),
+                  );
+                },
+              ),
+
             // Service Details Section
             const SizedBox(height: 16),
             const Text(
@@ -444,7 +466,7 @@ class _BookingListPageState extends State<BookingListPage> {
             const SizedBox(height: 20),
 
             // Action Buttons
-            _buildActionButtons(data['status'], bookingId),
+            _buildActionButtons(data['status'], bookingId, data['UserId']),
           ],
         ),
       ),
@@ -482,52 +504,56 @@ class _BookingListPageState extends State<BookingListPage> {
     );
   }
 
-  Widget _buildInfoSection({required IconData icon, required String title, required String content, String? subtitle}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: 16, color: Colors.blue),
-            const SizedBox(width: 8),
-            Text(
-              '$title:',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Padding(
-          padding: const EdgeInsets.only(left: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildInfoSection({required IconData icon, required String title, required String content, String? subtitle, VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
+              Icon(icon, size: 16, color: Colors.blue),
+              const SizedBox(width: 8),
               Text(
-                content,
+                '$title:',
                 style: const TextStyle(
-                  color: Colors.grey,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                   fontSize: 14,
                 ),
               ),
-              if (subtitle != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
             ],
           ),
-        ),
-        const SizedBox(height: 12),
-      ],
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  content,
+                  style: TextStyle(
+                    color: onTap != null ? Colors.blue : Colors.grey,
+                    fontSize: 14,
+                    decoration: onTap != null ? TextDecoration.underline : TextDecoration.none,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+      ),
     );
   }
 
@@ -562,14 +588,14 @@ class _BookingListPageState extends State<BookingListPage> {
     );
   }
 
-  Widget _buildActionButtons(String? status, String bookingId) {
+  Widget _buildActionButtons(String? status, String bookingId, String clientId) {
     switch (status) {
       case 'pending':
         return Row(
           children: [
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: () => _updateBookingStatus(bookingId, 'accepted'),
+                onPressed: () => _acceptBooking(bookingId, clientId),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
@@ -602,18 +628,36 @@ class _BookingListPageState extends State<BookingListPage> {
         );
 
       case 'accepted':
-        return ElevatedButton.icon(
-          onPressed: () => _updateBookingStatus(bookingId, 'completed'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-            minimumSize: const Size(double.infinity, 48),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+        return Column(
+          children: [
+            ElevatedButton.icon(
+              onPressed: () => _updateBookingStatus(bookingId, 'completed'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.done_all, size: 20),
+              label: const Text('Mark as Completed'),
             ),
-          ),
-          icon: const Icon(Icons.done_all, size: 20),
-          label: const Text('Mark as Completed'),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => _chatWithClient(clientId),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.blue,
+                side: const BorderSide(color: Colors.blue),
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.chat, size: 20),
+              label: const Text('Chat with Client'),
+            ),
+          ],
         );
 
       default:
@@ -739,6 +783,81 @@ class _BookingListPageState extends State<BookingListPage> {
     }
   }
 
+  Future<String> _getProviderName(String providerId) async {
+    if (_providerNamesCache.containsKey(providerId)) {
+      return _providerNamesCache[providerId]!;
+    }
+
+    try {
+      final providerDoc = await _firestore.collection('providers').doc(providerId).get();
+      if (providerDoc.exists) {
+        final providerName = providerDoc.get('businessName') ??
+            providerDoc.get('name') ??
+            providerDoc.get('displayName') ??
+            'Unknown Provider';
+        _providerNamesCache[providerId] = providerName;
+        return providerName;
+      }
+    } catch (e) {
+      print('Error fetching provider name: $e');
+    }
+
+    return 'Unknown Provider';
+  }
+
+  void _acceptBooking(String bookingId, String clientId) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      // Get provider info
+      final providerDoc = await _firestore.collection('providers').doc(currentUser.uid).get();
+      final providerName = providerDoc.get('businessName') ??
+          providerDoc.get('name') ??
+          currentUser.displayName ??
+          'A service provider';
+
+      // Update booking status
+      await _firestore.collection('jobs').doc(bookingId).update({
+        'status': 'accepted',
+        'acceptedBy': currentUser.uid,
+        'acceptedByName': providerName,
+        'acceptedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Create notification for the client
+      await _firestore.collection('notifications').add({
+        'userId': clientId,
+        'title': 'Job Accepted',
+        'message': '$providerName has accepted your service request',
+        'type': 'job_accepted',
+        'jobId': bookingId,
+        'providerId': currentUser.uid,
+        'read': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('You have accepted this job. The client has been notified.'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to accept job: $error'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
+  }
+
   void _updateBookingStatus(String bookingId, String newStatus) {
     _firestore.collection('jobs').doc(bookingId).update({
       'status': newStatus,
@@ -799,6 +918,8 @@ class _BookingListPageState extends State<BookingListPage> {
                 _buildDetailItem('Budget', data['budgetAmount'] != null ? '${data['budgetAmount']} XAF' : 'N/A'),
                 if (data['description'] != null)
                   _buildDetailItem('Description', data['description']),
+                if (data['acceptedByName'] != null)
+                  _buildDetailItem('Accepted by', data['acceptedByName']),
                 const SizedBox(height: 24),
                 Center(
                   child: ElevatedButton(
@@ -818,12 +939,13 @@ class _BookingListPageState extends State<BookingListPage> {
       );
     });
   }
+
   Widget _buildDetailItem(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [ // Added square brackets here
+        children: [
           Text(
             label,
             style: const TextStyle(
@@ -837,10 +959,34 @@ class _BookingListPageState extends State<BookingListPage> {
             style: const TextStyle(color: Colors.grey),
           ),
           const SizedBox(height: 12),
-        ], // Added square brackets here
+        ],
       ),
     );
   }
+
+  void _viewProviderProfile(String providerId) {
+    // Navigate to provider profile page
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProviderProfilePage(providerId: providerId),
+      ),
+    );
+  }
+
+  void _chatWithClient(String clientId) {
+    // Navigate to chat screen with client
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatScreen(
+          recipientId: clientId,
+          recipientType: 'client',
+        ),
+      ),
+    );
+  }
+
   void _showFilterDialog() {
     showDialog(
       context: context,
@@ -887,6 +1033,45 @@ class _BookingListPageState extends State<BookingListPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// Placeholder for Provider Profile Page
+class ProviderProfilePage extends StatelessWidget {
+  final String providerId;
+
+  const ProviderProfilePage({Key? key, required this.providerId}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Provider Profile'),
+      ),
+      body: Center(
+        child: Text('Provider Profile Page for ID: $providerId'),
+      ),
+    );
+  }
+}
+
+// Placeholder for Chat Screen
+class ChatScreen extends StatelessWidget {
+  final String recipientId;
+  final String recipientType;
+
+  const ChatScreen({Key? key, required this.recipientId, required this.recipientType}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Chat with ${recipientType == 'client' ? 'Client' : 'Provider'}'),
+      ),
+      body: Center(
+        child: Text('Chat Screen with $recipientType ID: $recipientId'),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:serviceprovider/userapp/chat_page.dart';
 
 class BookingListPage extends StatefulWidget {
   const BookingListPage({Key? key}) : super(key: key);
@@ -466,7 +467,7 @@ class _BookingListPageState extends State<BookingListPage> {
             const SizedBox(height: 20),
 
             // Action Buttons
-            _buildActionButtons(data['status'], bookingId, data['UserId']),
+            _buildActionButtons(data['status'], bookingId, data['UserId'],data['acceptedBy'],data['userName']),
           ],
         ),
       ),
@@ -588,7 +589,7 @@ class _BookingListPageState extends State<BookingListPage> {
     );
   }
 
-  Widget _buildActionButtons(String? status, String bookingId, String clientId) {
+  Widget _buildActionButtons(String? status, String bookingId, String clientId, String UserId, String name) {
     switch (status) {
       case 'pending':
         return Row(
@@ -645,7 +646,7 @@ class _BookingListPageState extends State<BookingListPage> {
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
-              onPressed: () => _chatWithClient(clientId),
+              onPressed: () => _chatWithClient(name,clientId,UserId),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.blue,
                 side: const BorderSide(color: Colors.blue),
@@ -662,7 +663,7 @@ class _BookingListPageState extends State<BookingListPage> {
 
       default:
         return OutlinedButton.icon(
-          onPressed: () => _viewBookingDetails(bookingId),
+          onPressed: () => _PostTojob(bookingId),
           style: OutlinedButton.styleFrom(
             foregroundColor: Colors.blue,
             side: const BorderSide(color: Colors.blue),
@@ -671,8 +672,8 @@ class _BookingListPageState extends State<BookingListPage> {
               borderRadius: BorderRadius.circular(12),
             ),
           ),
-          icon: const Icon(Icons.visibility, size: 20),
-          label: const Text('View Details'),
+          icon: const Icon(Icons.check_circle, size: 20),
+          label: const Text('Apply'),
         );
     }
   }
@@ -791,7 +792,7 @@ class _BookingListPageState extends State<BookingListPage> {
     try {
       final providerDoc = await _firestore.collection('providers').doc(providerId).get();
       if (providerDoc.exists) {
-        final providerName = providerDoc.get('businessName') ??
+        final providerName = providerDoc.get('imageUrl') ??
             providerDoc.get('name') ??
             providerDoc.get('displayName') ??
             'Unknown Provider';
@@ -812,7 +813,7 @@ class _BookingListPageState extends State<BookingListPage> {
     try {
       // Get provider info
       final providerDoc = await _firestore.collection('providers').doc(currentUser.uid).get();
-      final providerName = providerDoc.get('businessName') ??
+      final providerName = providerDoc.get('imageUrl') ??
           providerDoc.get('name') ??
           currentUser.displayName ??
           'A service provider';
@@ -883,6 +884,35 @@ class _BookingListPageState extends State<BookingListPage> {
         ),
       );
     });
+  }
+  Future<void> _PostTojob(String jobId) async {
+    try {
+      // Récupérer l'ID de l'utilisateur connecté
+      final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
+      if (currentUserId == null) {
+        print("Aucun utilisateur connecté");
+        return;
+      }
+
+      final docRef = FirebaseFirestore.instance.collection('jobs').doc(jobId);
+      final snapshot = await docRef.get();
+
+      if (!snapshot.exists) {
+        print("⚠️ Document introuvable !");
+        return;
+      }
+
+      // Mettre à jour le document en une seule fois
+      await docRef.update({
+        "AcceptList": FieldValue.arrayUnion([currentUserId]),
+        "status": "pending",
+      });
+
+      print("✅ Utilisateur ajouté et statut mis à jour avec succès !");
+    } catch (e) {
+      print("❌ Erreur lors de la mise à jour : $e");
+    }
   }
 
   void _viewBookingDetails(String bookingId) {
@@ -974,14 +1004,15 @@ class _BookingListPageState extends State<BookingListPage> {
     );
   }
 
-  void _chatWithClient(String clientId) {
+  void _chatWithClient(String name,String clientId,String UserId) {
     // Navigate to chat screen with client
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ChatScreen(
-          recipientId: clientId,
-          recipientType: 'client',
+        builder: (context) => ChatPage(
+          Name: name,
+          providerId: UserId,
+          clientId: clientId,
         ),
       ),
     );

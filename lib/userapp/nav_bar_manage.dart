@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:serviceprovider/userapp/activity_page.dart';
 import 'package:serviceprovider/userapp/accountpage.dart';
 import 'package:serviceprovider/userapp/agendapage.dart';
-import 'package:serviceprovider/userapp/chat_page.dart';
+import 'package:serviceprovider/userapp/chat_list.dart';
 import 'package:serviceprovider/userapp/joblist.dart';
-
-
 
 class NavBarManage extends StatefulWidget {
   const NavBarManage({super.key});
@@ -15,51 +13,63 @@ class NavBarManage extends StatefulWidget {
 }
 
 class _NavBarManageState extends State<NavBarManage> {
-
-
-  List pages  = [
-    BookingListPage(),
-    Joblist(),
-    AgendaPage(),
-    ChatPage(),
-    ManageAccountPage(),
+  // Pages pour chaque onglet
+  final List<Widget> _pages = [
+    const BookingListPage(),
+    const Joblist(),
+    const AgendaPage(),
+    ChatList(),
+    const ManageAccountPage(),
   ];
 
-  int currentIndex = 0;
-  void changepage(int index){
+  int _currentIndex = 0;
+
+  void _changePage(int index) {
     setState(() {
-      currentIndex = index;
+      _currentIndex = index;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: pages[currentIndex],
+      // Affiche la page correspondante à l'onglet sélectionné
+      body: _pages[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.blue,
+        backgroundColor: Colors.white,
+        selectedItemColor: Colors.blueAccent,
         unselectedItemColor: Colors.grey,
-        onTap: changepage,
-        items:  [
+        showUnselectedLabels: true,
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
+        onTap: _changePage,
+        elevation: 8, // ajoute une ombre subtile
+        items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.work_outline),
+            activeIcon: Icon(Icons.work),
             label: "Activity",
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.list_alt),
+            icon: Icon(Icons.list_alt_outlined),
+            activeIcon: Icon(Icons.list_alt),
             label: "Job List",
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.event_note),
+            icon: Icon(Icons.event_note_outlined),
+            activeIcon: Icon(Icons.event_note),
             label: "Agenda",
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.message_outlined),
+            activeIcon: Icon(Icons.message),
             label: "Messages",
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
             label: "Account",
           ),
         ],

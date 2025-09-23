@@ -589,14 +589,14 @@ class _BookingListPageState extends State<BookingListPage> {
     );
   }
 
-  Widget _buildActionButtons(String? status, String bookingId, String clientId, String UserId, String name) {
+  Widget _buildActionButtons(String? status, String bookingId, String? clientId, String? UserId, String name) {
     switch (status) {
       case 'pending':
         return Row(
           children: [
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: () => _acceptBooking(bookingId, clientId),
+                onPressed: () => _acceptBooking(bookingId, clientId!),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
@@ -646,7 +646,7 @@ class _BookingListPageState extends State<BookingListPage> {
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
-              onPressed: () => _chatWithClient(name,clientId,UserId),
+              onPressed: () => _chatWithClient(name,clientId!,UserId!),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.blue,
                 side: const BorderSide(color: Colors.blue),
